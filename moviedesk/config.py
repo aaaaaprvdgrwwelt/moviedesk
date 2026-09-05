@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 
 from PySide6.QtCore import QSettings
 
+from deskkit.settings import as_bool as _bool
+
 from .i18n import system_language
 from .matcher import DEFAULT_THRESHOLD, MatchConfig
 from .providers.base import MetadataProvider
@@ -22,12 +24,6 @@ SERIES_TEMPLATE_DEFAULT = (
     "{series} ({year})/Season {season:02d}/"
     "{series} - S{season:02d}E{episode:02d} - {episode_title}{ext}"
 )
-
-
-def _bool(value, default: bool) -> bool:
-    if value is None:
-        return default
-    return str(value).lower() in ("1", "true", "yes")
 
 
 @dataclass
