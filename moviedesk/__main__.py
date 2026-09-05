@@ -6,7 +6,7 @@ import sys
 from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import QApplication
 
-from . import theme
+from deskkit import theme
 from .appicon import icon as app_icon
 from .i18n import set_language
 from .mainwindow import MainWindow

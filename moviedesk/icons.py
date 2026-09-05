@@ -1,16 +1,11 @@
 """Eigene Icons als SVG.
 
-Icon-Themes gibt es unter Windows und macOS nicht und unter Linux nicht
-zuverlaessig. Deshalb werden die paar gebrauchten Symbole selbst gezeichnet.
-Sie uebernehmen die Textfarbe der Palette und funktionieren damit in hellen
-wie dunklen Themes.
+Der Render-Mechanismus steckt in `deskkit.icons.IconSet` - geteilt mit den
+anderen *desk-Apps. Hier liegt nur die App-eigene Icon-Tabelle.
 """
 from __future__ import annotations
 
-from PySide6.QtCore import QByteArray, QRectF, Qt
-from PySide6.QtGui import QColor, QIcon, QPainter, QPalette, QPixmap
-from PySide6.QtSvg import QSvgRenderer
-from PySide6.QtWidgets import QApplication
+from deskkit.icons import IconSet
 
 #: Strichzeichnungen auf einem 24x24-Raster.
 PATHS = {
@@ -46,42 +41,4 @@ PATHS = {
     "right": '<path d="M5 12h13M12 6l6 6-6 6"/>',
 }
 
-_TEMPLATE = (
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" '
-    'stroke="{color}" stroke-width="1.7" stroke-linecap="round" '
-    'stroke-linejoin="round">{body}</svg>'
-)
-
-_cache: dict[tuple[str, str, int], QIcon] = {}
-
-
-def _text_color() -> QColor:
-    app = QApplication.instance()
-    if app is None:
-        return QColor("#303030")
-    return app.palette().color(QPalette.WindowText)
-
-
-def icon(name: str, size: int = 24, color: str | None = None) -> QIcon:
-    """Icon `name` in Textfarbe. Unbekannte Namen ergeben ein leeres Icon."""
-    body = PATHS.get(name)
-    if not body:
-        return QIcon()
-    color = QColor(color) if color else _text_color()
-    key = (name, color.name(), size)
-    if key in _cache:
-        return _cache[key]
-
-    svg = _TEMPLATE.format(color=color.name(), body=body)
-    renderer = QSvgRenderer(QByteArray(svg.encode()))
-    result = QIcon()
-    for scale in (1, 2):
-        pixmap = QPixmap(size * scale, size * scale)
-        pixmap.fill(Qt.transparent)
-        painter = QPainter(pixmap)
-        renderer.render(painter, QRectF(pixmap.rect()))
-        painter.end()
-        pixmap.setDevicePixelRatio(scale)
-        result.addPixmap(pixmap)
-    _cache[key] = result
-    return result
+icon = IconSet(PATHS).icon
