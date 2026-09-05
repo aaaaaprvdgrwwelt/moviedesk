@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 from send2trash import send2trash
 
 from deskkit.actions import ActionRegistry
+from deskkit.paths import subfolder_of
 from deskkit.tiles import STATUS_ROLE, SUBTITLE_ROLE, CoverDelegate, configure_grid
 
 from . import missingdialog, nfo, renamer, scanner, subtitles
@@ -35,17 +36,6 @@ from .thumbs import PosterLoader
 TILE_W = 140
 POSTER_H = 205
 
-
-def _subfolder_of(path: Path, root: Path) -> Path:
-    """Der direkte Unterordner von `root`, der `path` enthaelt - z. B. der
-    Ordner einer einzelnen Serie/eines einzelnen Films fuer den gezielten
-    Scan. Liegt `path` direkt in `root` (kein eigener Unterordner), wird
-    `root` selbst zurueckgegeben."""
-    try:
-        rel = path.relative_to(root)
-    except ValueError:
-        return root
-    return root / rel.parts[0] if len(rel.parts) > 1 else root
 
 STATUS_LABEL = {
     "matched": _("zugeordnet"),
@@ -374,11 +364,11 @@ class MainWindow(QMainWindow):
         if not episodes:
             return
         root = Path(episodes[0].root)
-        self._scan_target(_subfolder_of(Path(episodes[0].path), root), root, EPISODE)
+        self._scan_target(subfolder_of(Path(episodes[0].path), root), root, EPISODE)
 
     def _scan_movie(self, movie: Item) -> None:
         root = Path(movie.root)
-        self._scan_target(_subfolder_of(Path(movie.path), root), root, LIB_MOVIE)
+        self._scan_target(subfolder_of(Path(movie.path), root), root, LIB_MOVIE)
 
     def scan_all(self) -> None:
         if not self.settings.movie_roots and not self.settings.series_roots:
