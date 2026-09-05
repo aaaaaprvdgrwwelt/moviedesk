@@ -1,9 +1,7 @@
 """Hilfe: was moviedesk kann und wie man an die noetigen API-Keys kommt."""
 from __future__ import annotations
 
-from PySide6.QtWidgets import (
-    QDialog, QDialogButtonBox, QTextBrowser, QVBoxLayout,
-)
+from deskkit.helpdialog import HelpDialog as _HelpDialog
 
 from .i18n import _
 
@@ -136,19 +134,6 @@ mitgefuehrt.</p>
 """
 
 
-class HelpDialog(QDialog):
+class HelpDialog(_HelpDialog):
     def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle(_("Hilfe"))
-        self.resize(720, 640)
-
-        browser = QTextBrowser()
-        browser.setOpenExternalLinks(True)
-        browser.setHtml(HELP_HTML)
-
-        buttons = QDialogButtonBox(QDialogButtonBox.Close)
-        buttons.rejected.connect(self.reject)
-
-        layout = QVBoxLayout(self)
-        layout.addWidget(browser)
-        layout.addWidget(buttons)
+        super().__init__(HELP_HTML, _("Hilfe"), parent)

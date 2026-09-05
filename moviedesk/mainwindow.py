@@ -14,6 +14,8 @@ from PySide6.QtWidgets import (
 )
 from send2trash import send2trash
 
+from deskkit.actions import ActionRegistry
+
 from . import missingdialog, nfo, renamer, scanner, subtitles
 from .appicon import icon as app_icon
 from .config import Settings
@@ -246,44 +248,73 @@ class MainWindow(QMainWindow):
         self.loader.ready.connect(self._on_poster)
 
         self._search_text = ""
-        self._build_toolbar()
         self._build_central()
+        self._build_actions()
+        self._build_toolbar()
+        self._build_menubar()
         self.setStatusBar(QStatusBar())
 
         self._series_items: dict[str, list[Item]] = {}
         self.refresh_view()
 
     # ------------------------------------------------------------------
+    def _build_actions(self) -> None:
+        """Eine QAction je Kommando - von Menue, Werkzeugleiste und
+        Kontextmenues gemeinsam benutzt (siehe deskkit.actions)."""
+        self.actions_map = ActionRegistry(self, _)
+        a = self.actions_map
+        a.add("add_movie_root", "Filme-Ordner …", slot=self._add_movie_root)
+        a.add("add_series_root", "Serien-Ordner …", slot=self._add_series_root)
+        a.add("scan", "Scannen", "F5", self.scan_all, tool_icon("refresh"))
+        a.add("auto_match", "Automatisch zuordnen", "Ctrl+T", self.auto_match,
+             tool_icon("match"))
+        a.add("missing", "Fehlende Teile …", "Ctrl+M", self.show_missing_overview,
+             tool_icon("warn"))
+        a.add("rename", "Umbenennen …", "Ctrl+R", self.rename_preview,
+             tool_icon("rename"))
+        a.add("nfo", "NFO erzeugen (Kodi/Jellyfin)", None, self.write_nfo_files,
+             tool_icon("nfo"))
+        a.add("subtitles", "Untertitel herunterladen …", None,
+             self.download_subtitles, tool_icon("subtitle"))
+        # Ziel self.tabs statt Fenster: sonst friesst "Entf" im Suchfeld
+        # Zeichen statt normal Text zu loeschen.
+        a.add("delete", "Loeschen …", "Del", self.delete_selected,
+             tool_icon("delete"), target=self.tabs,
+             shortcut_context=Qt.WidgetWithChildrenShortcut)
+        a.add("search", "Suchen", "Ctrl+F", self.focus_search)
+        a.add("settings", "Einstellungen …", "Ctrl+,", self.open_settings,
+             tool_icon("settings"))
+        a.add("help", "Hilfe …", "F1", self.open_help, tool_icon("help"))
+        a.add("quit", "Beenden", "Ctrl+Q", self.close)
+
     def _build_toolbar(self) -> None:
         bar = QToolBar()
         bar.setMovable(False)
         bar.setIconSize(QSize(20, 20))
         self.addToolBar(bar)
+        a = self.actions_map
 
         add_action = bar.addAction(tool_icon("folder_new"), _("Ordner hinzufuegen …"))
         menu = QMenu(self)
-        menu.addAction(_("Filme-Ordner …"), self._add_movie_root)
-        menu.addAction(_("Serien-Ordner …"), self._add_series_root)
+        menu.addAction(a["add_movie_root"])
+        menu.addAction(a["add_series_root"])
         add_action.setMenu(menu)
         # Klick auf den Knopf soll dasselbe Menue oeffnen wie der Pfeil.
         button = bar.widgetForAction(add_action)
         if isinstance(button, QToolButton):
             button.setPopupMode(QToolButton.InstantPopup)
 
-        bar.addAction(tool_icon("refresh"), _("Scannen"), self.scan_all)
-        bar.addAction(tool_icon("match"), _("Automatisch zuordnen"), self.auto_match)
-        bar.addAction(tool_icon("warn"), _("Fehlende Teile …"),
-                     self.show_missing_overview)
+        bar.addAction(a["scan"])
+        bar.addAction(a["auto_match"])
+        bar.addAction(a["missing"])
         bar.addSeparator()
-        bar.addAction(tool_icon("rename"), _("Umbenennen …"), self.rename_preview)
-        bar.addAction(tool_icon("nfo"), _("NFO erzeugen (Kodi/Jellyfin)"),
-                     self.write_nfo_files)
-        bar.addAction(tool_icon("subtitle"), _("Untertitel herunterladen …"),
-                     self.download_subtitles)
-        bar.addAction(tool_icon("delete"), _("Loeschen …"), self.delete_selected)
+        bar.addAction(a["rename"])
+        bar.addAction(a["nfo"])
+        bar.addAction(a["subtitles"])
+        bar.addAction(a["delete"])
         bar.addSeparator()
-        bar.addAction(tool_icon("settings"), _("Einstellungen …"), self.open_settings)
-        bar.addAction(tool_icon("help"), _("Hilfe …"), self.open_help)
+        bar.addAction(a["settings"])
+        bar.addAction(a["help"])
 
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
@@ -295,6 +326,39 @@ class MainWindow(QMainWindow):
         self.search_edit.setMaximumWidth(240)
         self.search_edit.textChanged.connect(self._on_search_changed)
         bar.addWidget(self.search_edit)
+
+    def _build_menubar(self) -> None:
+        a = self.actions_map
+        bar = self.menuBar()
+
+        menu = bar.addMenu(_("&Datei"))
+        menu.addAction(a["add_movie_root"])
+        menu.addAction(a["add_series_root"])
+        menu.addSeparator()
+        menu.addAction(a["scan"])
+        menu.addSeparator()
+        menu.addAction(a["quit"])
+
+        menu = bar.addMenu(_("&Bearbeiten"))
+        menu.addAction(a["rename"])
+        menu.addAction(a["delete"])
+
+        menu = bar.addMenu(_("&Ansicht"))
+        menu.addAction(a["search"])
+        menu.addAction(a["missing"])
+
+        menu = bar.addMenu(_("E&xtras"))
+        menu.addAction(a["auto_match"])
+        menu.addAction(a["nfo"])
+        menu.addAction(a["subtitles"])
+        menu.addSeparator()
+        menu.addAction(a["settings"])
+
+        bar.addMenu(_("&Hilfe")).addAction(a["help"])
+
+    def focus_search(self) -> None:
+        self.search_edit.selectAll()
+        self.search_edit.setFocus()
 
     def _build_central(self) -> None:
         self.tabs = QTabWidget()
@@ -1104,7 +1168,7 @@ class MainWindow(QMainWindow):
             menu.addAction(tool_icon("play"), _("Abspielen"),
                            lambda: self._play(movies[0]))
             menu.addSeparator()
-        menu.addAction(tool_icon("match"), _("Automatisch zuordnen"), self.auto_match)
+        menu.addAction(self.actions_map["auto_match"])
         if len(movies) == 1:
             menu.addAction(_("Manuell zuordnen …"),
                            lambda: self._manual_match(movies[0]))
@@ -1121,14 +1185,11 @@ class MainWindow(QMainWindow):
             menu.addAction(_("Aus eigener Sammlung entfernen"),
                            lambda: self._remove_from_collection(movies))
         menu.addSeparator()
-        menu.addAction(tool_icon("rename"), _("Umbenennen …"), self.rename_preview)
-        menu.addAction(tool_icon("nfo"), _("NFO erzeugen (Kodi/Jellyfin)"),
-                       self.write_nfo_files)
-        menu.addAction(tool_icon("subtitle"), _("Untertitel herunterladen …"),
-                       self.download_subtitles)
+        menu.addAction(self.actions_map["rename"])
+        menu.addAction(self.actions_map["nfo"])
+        menu.addAction(self.actions_map["subtitles"])
         menu.addSeparator()
-        menu.addAction(tool_icon("delete"), _("Loeschen …"),
-                       lambda: self._delete_items(movies))
+        menu.addAction(self.actions_map["delete"])
         menu.exec(self.movie_list.viewport().mapToGlobal(pos))
 
     def _episode_context_menu(self, pos) -> None:
@@ -1140,7 +1201,7 @@ class MainWindow(QMainWindow):
             menu.addAction(tool_icon("play"), _("Abspielen"),
                            lambda: self._play(episodes[0]))
             menu.addSeparator()
-        menu.addAction(tool_icon("match"), _("Automatisch zuordnen"), self.auto_match)
+        menu.addAction(self.actions_map["auto_match"])
         if len(episodes) == 1:
             menu.addAction(_("Manuell zuordnen …"),
                            lambda: self._manual_match(episodes[0]))
@@ -1149,14 +1210,11 @@ class MainWindow(QMainWindow):
         menu.addAction(_("Zu anderer Serie zuordnen …"),
                        lambda: self._reassign_series(episodes))
         menu.addSeparator()
-        menu.addAction(tool_icon("rename"), _("Umbenennen …"), self.rename_preview)
-        menu.addAction(tool_icon("nfo"), _("NFO erzeugen (Kodi/Jellyfin)"),
-                       self.write_nfo_files)
-        menu.addAction(tool_icon("subtitle"), _("Untertitel herunterladen …"),
-                       self.download_subtitles)
+        menu.addAction(self.actions_map["rename"])
+        menu.addAction(self.actions_map["nfo"])
+        menu.addAction(self.actions_map["subtitles"])
         menu.addSeparator()
-        menu.addAction(tool_icon("delete"), _("Loeschen …"),
-                       lambda: self._delete_items(episodes))
+        menu.addAction(self.actions_map["delete"])
         menu.exec(self.episode_table.viewport().mapToGlobal(pos))
 
     def _select_all_episodes_of(self, title: str) -> None:
