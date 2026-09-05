@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 
 from PySide6.QtCore import QSettings
 
+from deskkit.secrets import get_secret, set_secret
 from deskkit.settings import as_bool as _bool
 
 from .i18n import system_language
@@ -60,12 +61,12 @@ class Settings:
     def load(cls, settings: QSettings) -> "Settings":
         settings.beginGroup("moviedesk")
         obj = cls(
-            tmdb_key=settings.value("tmdb_key", "") or "",
+            tmdb_key=get_secret(settings, "moviedesk", "tmdb_key"),
             use_tmdb=_bool(settings.value("use_tmdb"), True),
-            omdb_key=settings.value("omdb_key", "") or "",
+            omdb_key=get_secret(settings, "moviedesk", "omdb_key"),
             use_omdb=_bool(settings.value("use_omdb"), False),
-            tvdb_key=settings.value("tvdb_key", "") or "",
-            tvdb_pin=settings.value("tvdb_pin", "") or "",
+            tvdb_key=get_secret(settings, "moviedesk", "tvdb_key"),
+            tvdb_pin=get_secret(settings, "moviedesk", "tvdb_pin"),
             use_tvdb=_bool(settings.value("use_tvdb"), False),
             threshold=int(settings.value("threshold", DEFAULT_THRESHOLD)),
             movie_template=settings.value("movie_template", MOVIE_TEMPLATE_DEFAULT)
@@ -75,9 +76,9 @@ class Settings:
             movie_roots=json.loads(settings.value("movie_roots", "[]") or "[]"),
             series_roots=json.loads(settings.value("series_roots", "[]") or "[]"),
             language=settings.value("language", "auto") or "auto",
-            opensubtitles_key=settings.value("opensubtitles_key", "") or "",
+            opensubtitles_key=get_secret(settings, "moviedesk", "opensubtitles_key"),
             opensubtitles_user=settings.value("opensubtitles_user", "") or "",
-            opensubtitles_pass=settings.value("opensubtitles_pass", "") or "",
+            opensubtitles_pass=get_secret(settings, "moviedesk", "opensubtitles_pass"),
             use_subtitles=_bool(settings.value("use_subtitles"), False),
             subtitle_languages=settings.value(
                 "subtitle_languages", DEFAULT_LANGUAGES) or DEFAULT_LANGUAGES,
@@ -88,9 +89,20 @@ class Settings:
         settings.endGroup()
         return obj
 
+    #: Diese Felder landen im System-Schluesselbund statt im Klartext in
+    #: QSettings (siehe deskkit.secrets) - opensubtitles_user bleibt aussen
+    #: vor, das ist nur ein Anmeldename, kein Geheimnis.
+    _SECRET_FIELDS = (
+        "tmdb_key", "omdb_key", "tvdb_key", "tvdb_pin",
+        "opensubtitles_key", "opensubtitles_pass",
+    )
+
     def save(self, settings: QSettings) -> None:
         settings.beginGroup("moviedesk")
         for key, value in self.__dict__.items():
+            if key in self._SECRET_FIELDS:
+                set_secret(settings, "moviedesk", key, value)
+                continue
             if isinstance(value, list):
                 value = json.dumps(value)
             settings.setValue(key, value)

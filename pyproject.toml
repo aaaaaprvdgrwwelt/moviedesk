@@ -19,6 +19,9 @@ dependencies = [
     "requests>=2.31",
     "pillow>=11.3",
     "send2trash>=1.8",
+    # API-Schluessel im System-Schluesselbund statt im Klartext in
+    # QSettings - siehe deskkit.secrets.
+    "keyring>=24",
 ]
 
 [project.urls]
