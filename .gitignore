@@ -4,3 +4,10 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+
+# Beim Paketbau erzeugt - Symbole entstehen aus dem SVG.
+packaging/moviedesk.ico
+packaging/moviedesk.icns
+packaging/moviedesk.iconset/
+packaging/ico-teile/
+selftest.log
