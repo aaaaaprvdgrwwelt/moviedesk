@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=MovieDesk
+Comment=Dateimanager fuer Filme und Serien
+Exec=@PREFIX@/moviedesk.sh %f
+Icon=moviedesk
+StartupWMClass=moviedesk
+Terminal=false
+Categories=AudioVideo;Video;FileTools;
