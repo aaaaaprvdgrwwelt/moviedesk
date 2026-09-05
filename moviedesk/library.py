@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS items (
     year INTEGER,
     season INTEGER,
     episode INTEGER,
+    episode_end INTEGER,
     episode_title TEXT DEFAULT '',
     episode_overview TEXT DEFAULT '',
     overview TEXT DEFAULT '',
@@ -72,6 +73,7 @@ _MIGRATIONS = [
     "ALTER TABLE items ADD COLUMN episode_overview TEXT DEFAULT ''",
     "ALTER TABLE items ADD COLUMN collection_id TEXT DEFAULT ''",
     "ALTER TABLE items ADD COLUMN source_kind TEXT DEFAULT ''",
+    "ALTER TABLE items ADD COLUMN episode_end INTEGER",
 ]
 
 
@@ -92,6 +94,9 @@ class Item:
     year: int | None = None
     season: int | None = None
     episode: int | None = None
+    #: Letzte Episode eines Mehrteilers ("S01E01E02" -> episode=1,
+    #: episode_end=2), sonst None - siehe parser.ParsedEpisode.
+    episode_end: int | None = None
     episode_title: str = ""
     episode_overview: str = ""
     overview: str = ""
@@ -117,8 +122,12 @@ class Item:
     @property
     def display_title(self) -> str:
         if self.kind == EPISODE:
-            tag = f"S{self.season:02d}E{self.episode:02d}" \
-                if self.season is not None and self.episode is not None else ""
+            if self.season is not None and self.episode is not None:
+                tag = f"S{self.season:02d}E{self.episode:02d}"
+                if self.episode_end is not None:
+                    tag += f"E{self.episode_end:02d}"
+            else:
+                tag = ""
             return f"{self.title} {tag}".strip()
         year = f" ({self.year})" if self.year else ""
         return f"{self.title}{year}"
@@ -150,6 +159,7 @@ class Item:
 
 _COLUMNS = [
     "id", "kind", "path", "root", "title", "year", "season", "episode",
+    "episode_end",
     "episode_title", "episode_overview", "overview", "genres", "rating",
     "runtime", "poster_url", "poster_path", "source", "source_kind",
     "external_id", "imdb_id", "collection", "collection_id",
@@ -184,16 +194,16 @@ class LibraryIndex:
     # --- Scannen --------------------------------------------------------
     def mark_scanned(self, path: Path, kind: str, root: Path,
                      title: str = "", year: int | None = None,
-                     season: int | None = None, episode: int | None = None
-                     ) -> None:
+                     season: int | None = None, episode: int | None = None,
+                     episode_end: int | None = None) -> None:
         """Datei bekannt machen, falls neu - vorhandene Zuordnung bleibt."""
         with self._lock:
             self._con.execute(
                 "INSERT INTO items (kind, path, root, title, year, season, "
-                "episode, scanned_at) VALUES (?,?,?,?,?,?,?,?) "
+                "episode, episode_end, scanned_at) VALUES (?,?,?,?,?,?,?,?,?) "
                 "ON CONFLICT(path) DO UPDATE SET scanned_at=excluded.scanned_at",
                 (kind, str(path), str(root), title, year, season, episode,
-                 time.time()))
+                 episode_end, time.time()))
             self._con.commit()
 
     def forget_missing(self, root: Path, existing: set[str]) -> int:

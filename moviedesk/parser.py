@@ -31,6 +31,30 @@ _SEASON_WORD = re.compile(r"[Ss]eason[ ._-]*(\d{1,2})")
 _EPISODE_WORD = re.compile(r"[Ee]pisode[ ._-]*(\d{1,3})")
 _SEASON_ONLY = re.compile(r"\b[Ss](\d{1,2})\b")
 
+#: Weitere Episode eines Mehrteilers direkt nach dem ersten Treffer -
+#: "S01E01E02" (kein Trenner) oder "S01E01 E02"/"S01E01 02" (der Bindestrich
+#: dazwischen wurde von clean_words() schon zu einem Leerzeichen). Ohne das
+#: wuerde "S01E01E02" nur als E01 erkannt und die zweite Episode verschwaende
+#: stillschweigend.
+#: Kein "^"/"\A" hier - match() mit pos-Argument setzt den Suchstart schon
+#: exakt dorthin, ein zusaetzlicher Anfangsanker wuerde an der echten
+#: Stringposition 0 verankern statt an pos und liefe dadurch immer leer.
+_EXTRA_EP = re.compile(r"\s?[Ee](\d{1,3})(?![a-zA-Z\d])")
+_EXTRA_EP_BARE = re.compile(r"\s(\d{1,3})(?![a-zA-Z\d])")
+
+#: Anime-Fallback: durchlaufende Episodennummer ohne SxxEyy/Staffelordner,
+#: z. B. "[Gruppe] Serie - 05 [1080p].mkv". Nur ein Notbehelf - findet
+#: sich keine plausible Zahl, bleibt die Datei unerkannt statt falsch
+#: geraten zu werden.
+_ANIME_ABS = re.compile(r"(?:\A|\s)(\d{1,3})(?![a-zA-Z\d])")
+#: Gaengige Aufloesungen als blanke Zahl - keine Episodennummern, auch wenn
+#: sie die obige Form erfuellen.
+_RESOLUTIONS = {"240", "360", "480", "576", "720", "1080", "2160"}
+
+#: Fansub-Gruppenname vorangestellt in eckigen Klammern, z. B.
+#: "[SubGroup] Serie - 05.mkv" - sonst landet "]" mitten im Serientitel.
+_LEADING_TAG = re.compile(r"^\[[^\]]*\]\s*")
+
 VIDEO_EXTENSIONS = {
     ".mp4", ".mkv", ".avi", ".mov", ".m4v", ".wmv", ".ts", ".webm", ".flv",
 }
@@ -70,6 +94,9 @@ class ParsedEpisode:
     #: Rueckfallebene fuer den Fall, dass die Quelle die Episode nicht kennt
     #: (z. B. ein Special, das TMDb anders/gar nicht katalogisiert hat).
     guessed_title: str = ""
+    #: Letzte Episode eines Mehrteilers ("S01E01E02" -> episode=1, episode_end=2),
+    #: sonst None. Beide Nummern liegen in derselben Datei.
+    episode_end: int | None = None
 
 
 def is_sample_or_extra(name: str) -> bool:
@@ -118,16 +145,34 @@ def _season_episode(text: str) -> tuple[int, int] | None:
     return None
 
 
+def _anime_absolute_episode(text: str) -> tuple[int, int] | None:
+    """Letzte plausible blanke Zahl im Namen als durchlaufende Episoden-
+    nummer - gaengige Anime-Konvention ohne Staffelangabe (Staffel 1
+    angenommen, wie die meisten Verwaltungsprogramme das handhaben).
+    Gibt (Position, Episodennummer) zurueck, oder None ohne Kandidaten."""
+    candidates = [m for m in _ANIME_ABS.finditer(text)
+                 if m.group(1) not in _RESOLUTIONS]
+    if not candidates:
+        return None
+    match = candidates[-1]
+    return match.start(1), int(match.group(1))
+
+
 def parse_episode(path: Path) -> ParsedEpisode | None:
     """Serienname + Staffel/Episode. None, wenn kein Muster erkennbar ist.
 
     Sucht zuerst im Dateinamen; fehlt dort die Staffel (z. B. nur `E05.mkv`
-    in einem `Season 01`-Ordner), wird der Ordner herangezogen.
+    in einem `Season 01`-Ordner), wird der Ordner herangezogen. Letzter
+    Rueckfall: eine durchlaufende Nummer ohne jede Staffelangabe, wie bei
+    Anime-Releases ueblich (siehe `_anime_absolute_episode`).
     """
     stem = clean_words(path.stem)
     found = _season_episode(stem)
     series_source = stem
     marker_source = stem
+    #: Position, ab der der Serientitel abgeschnitten wird - normalerweise
+    #: der Start des SxxEyy-Treffers, beim Anime-Fallback die Zahl selbst.
+    cut_at: int | None = None
 
     if found is None:
         season_match = _SEASON_ONLY.search(path.parent.name) or \
@@ -139,16 +184,42 @@ def parse_episode(path: Path) -> ParsedEpisode | None:
             series_source = clean_words(path.parent.parent.name)
 
     if found is None:
+        absolute = _anime_absolute_episode(stem)
+        if absolute is not None:
+            cut_at, abs_episode = absolute
+            found = (1, abs_episode)
+
+    if found is None:
         return None
 
     season, episode = found
+    episode_end: int | None = None
     marker = _SXXEYY.search(marker_source) or _NxNN.search(marker_source)
-    guessed_title = _strip_trailing_punct(
-        _strip_noise(marker_source[marker.end():])) if marker else ""
+    if marker:
+        # Mehrteiler wie "S01E01E02"/"S01E01 E02"/"S01E01 02" (der
+        # Bindestrich ist durch clean_words() schon zu einem Leerzeichen
+        # geworden) - weitere Episoden direkt nach dem ersten Treffer
+        # einsammeln, statt sie stillschweigend zu verlieren.
+        pos = marker.end()
+        while True:
+            extra = _EXTRA_EP.match(marker_source, pos) or \
+                _EXTRA_EP_BARE.match(marker_source, pos)
+            if not extra:
+                break
+            episode_end = int(extra.group(1))
+            pos = extra.end()
+        guessed_title = _strip_trailing_punct(_strip_noise(marker_source[pos:]))
+    else:
+        guessed_title = ""
 
     title_source = series_source
-    series_marker = _SXXEYY.search(title_source) or _NxNN.search(title_source)
-    title_part = title_source[:series_marker.start()] if series_marker else title_source
+    if cut_at is not None:
+        title_part = title_source[:cut_at]
+    else:
+        series_marker = _SXXEYY.search(title_source) or _NxNN.search(title_source)
+        title_part = title_source[:series_marker.start()] if series_marker \
+            else title_source
+    title_part = _LEADING_TAG.sub("", title_part)
     title_part = _strip_noise(title_part)
     year_match = _year_re.search(title_part)
     year = int(year_match.group(1)) if year_match else None
@@ -158,4 +229,4 @@ def parse_episode(path: Path) -> ParsedEpisode | None:
     if not series:
         series = _strip_trailing_punct(clean_words(path.parent.parent.name))
     return ParsedEpisode(series=series, season=season, episode=episode, year=year,
-                         guessed_title=guessed_title)
+                         guessed_title=guessed_title, episode_end=episode_end)

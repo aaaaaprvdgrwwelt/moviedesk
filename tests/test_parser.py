@@ -59,6 +59,57 @@ def test_parse_episode_extra_large_is_not_mistaken_for_noise():
     assert "Extra Large Medium" in parsed.guessed_title
 
 
+def test_parse_episode_multi_episode_concatenated():
+    parsed = parse_episode(Path("/series/Show/Show.S01E01E02.mkv"))
+    assert parsed.season == 1
+    assert parsed.episode == 1
+    assert parsed.episode_end == 2
+
+
+def test_parse_episode_multi_episode_with_dash_and_e():
+    # clean_words() macht den Bindestrich vor dem Titel zu Leerzeichen -
+    # "S01E01-E02 - Titel" kommt hier als "S01E01 E02  Titel" an.
+    parsed = parse_episode(
+        Path("/series/Show/Show - S01E01-E02 - Double Episode.mkv"))
+    assert parsed.season == 1
+    assert parsed.episode == 1
+    assert parsed.episode_end == 2
+    assert "Double Episode" in parsed.guessed_title
+
+
+def test_parse_episode_multi_episode_bare_second_number():
+    parsed = parse_episode(Path("/series/Show/Show - S01E01-02.mkv"))
+    assert parsed.season == 1
+    assert parsed.episode == 1
+    assert parsed.episode_end == 2
+
+
+def test_parse_episode_single_episode_has_no_episode_end():
+    parsed = parse_episode(Path("/series/Show/Show.S01E05.mkv"))
+    assert parsed.episode_end is None
+
+
+def test_parse_episode_anime_absolute_numbering_assumes_season_one():
+    parsed = parse_episode(
+        Path("/series/Anime/[SubGroup] Anime Name - 05 [1080p][ABCD1234].mkv"))
+    assert parsed.series == "Anime Name"
+    assert parsed.season == 1
+    assert parsed.episode == 5
+
+
+def test_parse_episode_anime_absolute_numbering_zero_padded():
+    parsed = parse_episode(Path("/series/Anime/Anime Name - 005.mkv"))
+    assert parsed.series == "Anime Name"
+    assert parsed.season == 1
+    assert parsed.episode == 5
+
+
+def test_parse_episode_anime_fallback_ignores_bare_resolution_numbers():
+    # "720"/"1080" etc. sind keine Episodennummern, auch wenn sie als
+    # blanke Zahl im Dateinamen stehen.
+    assert parse_episode(Path("/series/Anime/Anime Name 1080.mkv")) is None
+
+
 def test_is_sample_or_extra_true_for_bonus_material():
     assert is_sample_or_extra("Movie.Title.2020.Sample.mkv") is True
     assert is_sample_or_extra("Show.S01.Trailer.mkv") is True

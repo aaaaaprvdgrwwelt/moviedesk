@@ -147,7 +147,9 @@ class SettingsDialog(QDialog):
 
         layout.addWidget(QLabel(
             _("Platzhalter Serien: {series} {year} {season} {episode} "
-              "{episode_title} {ext} - {year} ist das Jahr der Erstausstrahlung")))
+              "{episode_end} {episode_title} {ext} - {year} ist das Jahr der "
+              "Erstausstrahlung, {episode_end} nur bei Mehrteilern wie "
+              "S01E01E02 belegt (sonst leer)")))
         self.series_template = QLineEdit(settings.series_template)
         layout.addWidget(self.series_template)
         layout.addStretch(1)

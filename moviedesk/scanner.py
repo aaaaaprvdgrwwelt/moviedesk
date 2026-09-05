@@ -59,7 +59,7 @@ class ScanWorker(QObject):
                     continue
                 self.library.mark_scanned(
                     path, EPISODE, root_path, parsed.series, parsed.year,
-                    parsed.season, parsed.episode)
+                    parsed.season, parsed.episode, parsed.episode_end)
             self.library.forget_missing(root_path, {str(p) for p in found})
         self.finished.emit()
 
@@ -92,7 +92,7 @@ def scan_folder(folder: Path, root: Path, kind: str, library: LibraryIndex) -> N
                 continue
             library.mark_scanned(
                 path, EPISODE, root, parsed.series, parsed.year,
-                parsed.season, parsed.episode)
+                parsed.season, parsed.episode, parsed.episode_end)
     library.forget_missing_under(folder, {str(p) for p in found})
 
 

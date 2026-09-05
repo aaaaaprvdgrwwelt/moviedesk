@@ -94,6 +94,7 @@ def build_episode_target(root: Path, item: Item, template: str) -> Path | None:
     formatted = template.format(
         series=_safe_value(item.title or _("Unbekannt")), year=item.year or "",
         season=item.season, episode=item.episode,
+        episode_end=item.episode_end if item.episode_end is not None else "",
         episode_title=_safe_value(item.episode_title or ""), ext="")
     formatted = _clean_empty_tokens(formatted)
     segments = [sanitize_segment(s) for s in formatted.split("/") if s.strip()]

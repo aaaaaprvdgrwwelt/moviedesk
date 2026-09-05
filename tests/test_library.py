@@ -35,6 +35,33 @@ def test_mark_scanned_keeps_existing_match_on_rescan(tmp_path):
     assert items[0].status == STATUS_MATCHED
 
 
+def test_mark_scanned_stores_episode_end_for_multi_episode_files(tmp_path):
+    index = make_index(tmp_path)
+    index.mark_scanned(
+        Path("/series/Show/S01E01E02.mkv"), EPISODE, Path("/series"),
+        title="Show", season=1, episode=1, episode_end=2)
+    items = index.list_episodes()
+    assert items[0].episode_end == 2
+
+
+def test_display_title_shows_range_for_multi_episode(tmp_path):
+    index = make_index(tmp_path)
+    index.mark_scanned(
+        Path("/series/Show/S01E01E02.mkv"), EPISODE, Path("/series"),
+        title="Show", season=1, episode=1, episode_end=2)
+    item = index.list_episodes()[0]
+    assert item.display_title == "Show S01E01E02"
+
+
+def test_display_title_single_episode_has_no_range(tmp_path):
+    index = make_index(tmp_path)
+    index.mark_scanned(
+        Path("/series/Show/S01E01.mkv"), EPISODE, Path("/series"),
+        title="Show", season=1, episode=1)
+    item = index.list_episodes()[0]
+    assert item.display_title == "Show S01E01"
+
+
 def test_forget_missing_removes_gone_files(tmp_path):
     index = make_index(tmp_path)
     root = Path("/series")
