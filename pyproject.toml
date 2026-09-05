@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "moviedesk"
+version = "0.1.0"
+description = "Ein Dateimanager nur fuer Filme und Serien: sichten, Metadaten holen, umbenennen"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+dependencies = [
+    "PySide6>=6.6",
+    "requests>=2.31",
+    "pillow>=11.3",
+    "send2trash>=1.8",
+]
+
+[project.urls]
+Homepage = "https://github.com/aaaaaprvdgrwwelt/moviedesk"
+
+[project.scripts]
+moviedesk = "moviedesk.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["moviedesk*"]
