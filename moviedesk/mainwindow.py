@@ -341,15 +341,15 @@ class MainWindow(QMainWindow):
         """Nur `folder` neu einlesen - fuer den gezielten Scan einer
         einzelnen Serie oder eines einzelnen Films aus dem Kontextmenue,
         statt jedes Mal den ganzen Wurzelordner zu durchsuchen."""
-        progress = QProgressDialog(_("Scanne …"), None, 0, 0, self)
+        progress = QProgressDialog(_("Scanne …"), _("Abbrechen"), 0, 0, self)
         progress.setWindowModality(Qt.WindowModal)
         progress.setMinimumDuration(0)
-        progress.setCancelButton(None)
         progress.setAutoClose(False)
         progress.setAutoReset(False)
 
         thread, worker = scanner.run_folder_in_thread(folder, root, kind, self.library)
         worker.progress.connect(progress.setLabelText)
+        progress.canceled.connect(worker.stop)
         thread.finished.connect(progress.close)
         thread.finished.connect(self.refresh_view)
         thread.finished.connect(
@@ -376,16 +376,16 @@ class MainWindow(QMainWindow):
                 self, _("Scannen"), _("Bitte mindestens einen Ordner hinzufuegen."))
             return
 
-        progress = QProgressDialog(_("Scanne …"), None, 0, 0, self)
+        progress = QProgressDialog(_("Scanne …"), _("Abbrechen"), 0, 0, self)
         progress.setWindowModality(Qt.WindowModal)
         progress.setMinimumDuration(0)
-        progress.setCancelButton(None)
         progress.setAutoClose(False)
         progress.setAutoReset(False)
 
         thread, worker = scanner.run_in_thread(
             self.settings.movie_roots, self.settings.series_roots, self.library)
         worker.progress.connect(progress.setLabelText)
+        progress.canceled.connect(worker.stop)
         thread.finished.connect(progress.close)
         thread.finished.connect(self.refresh_view)
         thread.finished.connect(

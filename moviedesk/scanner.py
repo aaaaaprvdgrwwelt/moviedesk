@@ -37,22 +37,37 @@ class ScanWorker(QObject):
         self.movie_roots = movie_roots
         self.series_roots = series_roots
         self.library = library
+        self._stop = False
+
+    def stop(self) -> None:
+        self._stop = True
 
     def run(self) -> None:
         for root in self.movie_roots:
+            if self._stop:
+                break
             self.progress.emit(root)
             root_path = Path(root)
             found = find_videos(root_path)
             for path in found:
+                if self._stop:
+                    break
                 parsed = parse_movie(path)
                 self.library.mark_scanned(
                     path, MOVIE, root_path, parsed.title, parsed.year)
+            # find_videos() lief vollstaendig, auch bei einem Abbruch mitten
+            # in der Schleife darueber - das Aufraeumen bleibt deshalb sicher
+            # auf tatsaechlich fehlende Dateien beschraenkt.
             self.library.forget_missing(root_path, {str(p) for p in found})
         for root in self.series_roots:
+            if self._stop:
+                break
             self.progress.emit(root)
             root_path = Path(root)
             found = find_videos(root_path)
             for path in found:
+                if self._stop:
+                    break
                 parsed = parse_episode(path)
                 if parsed is None:
                     self.library.mark_scanned(path, EPISODE, root_path)
@@ -75,13 +90,19 @@ def run_in_thread(movie_roots: list[str], series_roots: list[str],
     return thread, worker
 
 
-def scan_folder(folder: Path, root: Path, kind: str, library: LibraryIndex) -> None:
+def scan_folder(folder: Path, root: Path, kind: str, library: LibraryIndex,
+                should_stop=None) -> None:
     """Nur `folder` neu einlesen - z. B. der Unterordner einer einzelnen
     Serie oder eines einzelnen Films, statt des ganzen Wurzelordners `root`.
     Eintraege werden weiterhin unter `root` gefuehrt (wie beim vollen Scan),
-    aber nur unterhalb von `folder` verglichen/aufgeraeumt."""
+    aber nur unterhalb von `folder` verglichen/aufgeraeumt. `should_stop`
+    ist ein parameterloses Callable, das True liefert, sobald abgebrochen
+    werden soll (siehe FolderScanWorker.stop())."""
+    should_stop = should_stop or (lambda: False)
     found = find_videos(folder)
     for path in found:
+        if should_stop():
+            break
         if kind == MOVIE:
             parsed = parse_movie(path)
             library.mark_scanned(path, MOVIE, root, parsed.title, parsed.year)
@@ -110,10 +131,15 @@ class FolderScanWorker(QObject):
         self.root = root
         self.kind = kind
         self.library = library
+        self._stop = False
+
+    def stop(self) -> None:
+        self._stop = True
 
     def run(self) -> None:
         self.progress.emit(str(self.folder))
-        scan_folder(self.folder, self.root, self.kind, self.library)
+        scan_folder(self.folder, self.root, self.kind, self.library,
+                   should_stop=lambda: self._stop)
         self.finished.emit()
 
 
