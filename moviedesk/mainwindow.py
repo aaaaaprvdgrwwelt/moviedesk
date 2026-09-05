@@ -3,18 +3,19 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QRect, QSettings, QSize, Qt, QTimer, QUrl
-from PySide6.QtGui import QColor, QDesktopServices, QFont, QIcon, QPainter, QPen, QPixmap
+from PySide6.QtCore import QSettings, QSize, Qt, QTimer, QUrl
+from PySide6.QtGui import QColor, QDesktopServices, QIcon
 from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog,
     QHeaderView, QInputDialog, QLabel, QLineEdit, QListWidget, QListWidgetItem,
     QMainWindow, QMenu, QMessageBox, QProgressDialog, QPushButton, QSizePolicy,
-    QSplitter, QStatusBar, QStyle, QStyledItemDelegate, QTableWidget,
+    QSplitter, QStatusBar, QTableWidget,
     QTableWidgetItem, QTabWidget, QToolBar, QToolButton, QVBoxLayout, QWidget,
 )
 from send2trash import send2trash
 
 from deskkit.actions import ActionRegistry
+from deskkit.tiles import STATUS_ROLE, SUBTITLE_ROLE, CoverDelegate, configure_grid
 
 from . import missingdialog, nfo, renamer, scanner, subtitles
 from .appicon import icon as app_icon
@@ -33,8 +34,6 @@ from .thumbs import PosterLoader
 
 TILE_W = 140
 POSTER_H = 205
-PAD = 8
-TEXT_LINES = 2
 
 
 def _subfolder_of(path: Path, root: Path) -> Path:
@@ -47,11 +46,6 @@ def _subfolder_of(path: Path, root: Path) -> Path:
     except ValueError:
         return root
     return root / rel.parts[0] if len(rel.parts) > 1 else root
-
-#: Zweite Kachel-Zeile (Jahr o. ae.) - im Serien-Raster die Episodenzahl.
-SUBTITLE_ROLE = Qt.UserRole + 1
-#: matched/unsure/unmatched/error - steuert die Statusfarbe der Kachel.
-STATUS_ROLE = Qt.UserRole + 2
 
 STATUS_LABEL = {
     "matched": _("zugeordnet"),
@@ -72,117 +66,6 @@ STATUS_COLOR = {
 #: Kennzeichnet eine nur angezeigte (nicht besessene) Kachel bei "Fehlende
 #: Filme/Episoden pruefen" - id -1 gibt es in der Datenbank nie.
 MISSING_ID = -1
-
-
-def _wrap_lines(text: str, fm, width: int, max_lines: int) -> list[str]:
-    """Woerter zeilenweise auffuellen; ueberschuessiger Rest wird eliert."""
-    words = text.split()
-    if not words:
-        return [""]
-    lines: list[str] = []
-    current = ""
-    index = 0
-    while index < len(words) and len(lines) < max_lines:
-        candidate = f"{current} {words[index]}".strip()
-        if fm.horizontalAdvance(candidate) <= width or not current:
-            current = candidate
-            index += 1
-        else:
-            lines.append(current)
-            current = ""
-    if current:
-        lines.append(current)
-    if index < len(words) and lines:
-        rest = " ".join(words[index:])
-        lines[-1] = fm.elidedText(f"{lines[-1]} {rest}", Qt.ElideRight, width)
-    return lines[:max_lines]
-
-
-class PosterDelegate(QStyledItemDelegate):
-    """Zeichnet eine Kachel: Poster oben, Titel darunter, Statusfarbe am Rand.
-
-    Qt's eingebautes IconMode-Raster kommt mit unterschiedlichen
-    Poster-Seitenverhaeltnissen nicht zurecht (falsch skaliert/zerhackt) -
-    deshalb wird hier selbst gezeichnet, nach dem Vorbild von comicdesk.
-    """
-
-    def sizeHint(self, option, index):  # noqa: N802
-        fm = option.fontMetrics
-        lines = TEXT_LINES + (1 if index.data(SUBTITLE_ROLE) else 0)
-        return QSize(TILE_W, POSTER_H + lines * fm.height() + 3 * PAD)
-
-    def paint(self, painter: QPainter, option, index) -> None:  # noqa: N802
-        painter.save()
-        painter.setRenderHint(QPainter.Antialiasing)
-        rect = option.rect.adjusted(3, 3, -3, -3)
-        selected = bool(option.state & QStyle.State_Selected)
-        hovered = bool(option.state & QStyle.State_MouseOver)
-
-        if selected or hovered:
-            color = option.palette.highlight().color()
-            if not selected:
-                color.setAlpha(60)
-            painter.setPen(Qt.NoPen)
-            painter.setBrush(color)
-            painter.drawRoundedRect(rect, 6, 6)
-
-        poster_rect = QRect(rect.left() + PAD, rect.top() + PAD,
-                            rect.width() - 2 * PAD, POSTER_H)
-        icon = index.data(Qt.DecorationRole)
-        pm = QPixmap()
-        if isinstance(icon, QIcon):
-            avail = icon.availableSizes()
-            pm = icon.pixmap(avail[0] if avail else QSize(200, 300))
-        if not pm.isNull():
-            target = pm.size().scaled(poster_rect.size(), Qt.KeepAspectRatio)
-            x = poster_rect.left() + (poster_rect.width() - target.width()) // 2
-            y = poster_rect.top() + (poster_rect.height() - target.height())
-            dest = QRect(x, y, target.width(), target.height())
-            painter.setPen(QPen(QColor(0, 0, 0, 60)))
-            painter.setBrush(Qt.NoBrush)
-            painter.drawPixmap(dest, pm)
-            painter.drawRect(dest.adjusted(0, 0, -1, -1))
-        else:
-            painter.setPen(QPen(option.palette.mid().color()))
-            painter.setBrush(option.palette.base())
-            painter.drawRoundedRect(poster_rect, 4, 4)
-
-        status = index.data(STATUS_ROLE)
-        color = STATUS_COLOR.get(status)
-        if color:
-            bar = QRect(poster_rect.left(), poster_rect.bottom() - 5,
-                       poster_rect.width(), 5)
-            painter.setPen(Qt.NoPen)
-            painter.setBrush(color)
-            painter.drawRect(bar)
-
-        fm = option.fontMetrics
-        font = QFont(option.font)
-        painter.setFont(font)
-        painter.setPen(option.palette.highlightedText().color() if selected
-                       else option.palette.text().color())
-        text_top = poster_rect.bottom() + PAD
-        text_rect = QRect(rect.left() + 4, text_top, rect.width() - 8,
-                          TEXT_LINES * fm.height())
-        title = index.data(Qt.DisplayRole) or ""
-        for i, line in enumerate(_wrap_lines(title, fm, text_rect.width(), TEXT_LINES)):
-            painter.drawText(text_rect.left(), text_rect.top() + (i + 1) * fm.height()
-                             - fm.descent(), line)
-        subtitle = index.data(SUBTITLE_ROLE)
-        if subtitle:
-            painter.setPen(QColor(subtle_color(option)))
-            y = text_rect.bottom() + fm.height() - fm.descent()
-            painter.drawText(text_rect.left(), y, subtitle)
-        painter.restore()
-
-
-def subtle_color(option) -> QColor:
-    text = option.palette.text().color()
-    window = option.palette.window().color()
-    return QColor(
-        round((text.red() + window.red()) / 2),
-        round((text.green() + window.green()) / 2),
-        round((text.blue() + window.blue()) / 2))
 
 
 class _SeasonPickerDialog(QDialog):
@@ -443,13 +326,8 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(series_split, tool_icon("tv"), _("Serien"))
 
     def _configure_grid(self, widget: QListWidget) -> None:
-        widget.setViewMode(QListWidget.IconMode)
-        widget.setResizeMode(QListWidget.Adjust)
-        widget.setMovement(QListWidget.Static)
-        widget.setSpacing(10)
-        widget.setUniformItemSizes(False)
-        widget.setSelectionMode(QListWidget.ExtendedSelection)
-        widget.setItemDelegate(PosterDelegate(widget))
+        configure_grid(widget, CoverDelegate(
+            STATUS_COLOR, tile_w=TILE_W, cover_h=POSTER_H, parent=widget))
 
     # --- Ordner verwalten -----------------------------------------------
     def _add_movie_root(self) -> None:

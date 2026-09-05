@@ -2,49 +2,16 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import (
-    QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout,
-    QGroupBox, QHBoxLayout, QLabel, QLineEdit, QListWidget, QPushButton,
+    QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout,
+    QGroupBox, QHBoxLayout, QLabel, QLineEdit,
     QSlider, QTabWidget, QVBoxLayout, QWidget,
 )
 from PySide6.QtCore import Qt
 
+from deskkit.widgets import RootList
+
 from .config import Settings
 from .i18n import LANGUAGES, _
-
-
-class _RootList(QWidget):
-    """Ordnerliste mit Hinzufuegen/Entfernen - fuer Filme- oder Serien-Wurzeln."""
-
-    def __init__(self, roots: list[str], parent=None):
-        super().__init__(parent)
-        self.list = QListWidget()
-        self.list.addItems(roots)
-
-        add_button = QPushButton(_("Ordner hinzufuegen …"))
-        add_button.clicked.connect(self._add)
-        remove_button = QPushButton(_("Entfernen"))
-        remove_button.clicked.connect(self._remove)
-
-        buttons = QHBoxLayout()
-        buttons.addWidget(add_button)
-        buttons.addWidget(remove_button)
-        buttons.addStretch(1)
-
-        layout = QVBoxLayout(self)
-        layout.addWidget(self.list)
-        layout.addLayout(buttons)
-
-    def _add(self) -> None:
-        folder = QFileDialog.getExistingDirectory(self, _("Ordner waehlen"))
-        if folder:
-            self.list.addItem(folder)
-
-    def _remove(self) -> None:
-        for item in self.list.selectedItems():
-            self.list.takeItem(self.list.row(item))
-
-    def roots(self) -> list[str]:
-        return [self.list.item(i).text() for i in range(self.list.count())]
 
 
 class SettingsDialog(QDialog):
@@ -190,10 +157,10 @@ class SettingsDialog(QDialog):
         widget = QWidget()
         layout = QVBoxLayout(widget)
         layout.addWidget(QLabel(_("Filme-Ordner")))
-        self.movie_roots = _RootList(settings.movie_roots)
+        self.movie_roots = RootList(settings.movie_roots, _)
         layout.addWidget(self.movie_roots)
         layout.addWidget(QLabel(_("Serien-Ordner")))
-        self.series_roots = _RootList(settings.series_roots)
+        self.series_roots = RootList(settings.series_roots, _)
         layout.addWidget(self.series_roots)
 
         self.save_local_posters = QCheckBox(
