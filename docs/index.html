@@ -88,6 +88,11 @@ th { font-weight: 600; white-space: nowrap; }
 }
 .note strong { color: var(--fg); }
 
+.shots { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+figure { margin: 0; }
+figure img { width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); box-shadow: var(--shadow); display: block; }
+figcaption { margin-top: 8px; font-size: .86rem; color: var(--muted); }
+
 footer { padding: 40px 0 60px; color: var(--muted); font-size: .9rem; }
 footer a { color: var(--muted); }
 </style>
@@ -175,6 +180,19 @@ footer a { color: var(--muted); }
         <p>Kodi-/Jellyfin-/Plex-kompatible <code>.nfo</code>-Dateien auf Wunsch,
            Untertitel-Download über OpenSubtitles in den konfigurierten Sprachen.</p>
       </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Bilder</h2>
+    <p class="sub">Filmraster mit Metadaten-Panel im laufenden Betrieb.</p>
+    <div class="shots">
+      <figure>
+        <img src="screenshot.png" alt="MovieDesk mit Filmraster und Metadaten-Panel" loading="lazy">
+        <figcaption>Poster-Kacheln links, Metadaten und Quelle rechts.</figcaption>
+      </figure>
     </div>
   </div>
 </section>
