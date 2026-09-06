@@ -88,12 +88,36 @@ Special, das ungewoehnlich katalogisiert ist), laesst er sich im Dialog
     TMDb aufgeloest, bei einem Fehlschlag automatisch ueber OMDb.</li>
 </ul>
 
+<h2>Scannen</h2>
+<p>Erkennt gaengige Szene-Konventionen (<code>S01E05</code>,
+<code>1x05</code>, <code>Season 01/E05.mkv</code>) und zusaetzlich:</p>
+<ul>
+<li><b>Mehrfach-Episoden</b> wie <code>S01E01E02</code> oder
+    <code>S01E01-E02</code> - beide Episodennummern werden erkannt statt
+    nur der ersten, die Anzeige zeigt <code>S01E01E02</code>.</li>
+<li><b>Anime-Nummerierung</b> ohne Staffelangabe (z. B.
+    <code>[Gruppe] Serie - 05 [1080p].mkv</code>) - die letzte plausible
+    Zahl im Dateinamen wird als durchlaufende Episode uebernommen
+    (Staffel 1 angenommen); bekannte Aufloesungswerte (720, 1080, ...)
+    werden dabei nicht als Episodennummer missverstanden.</li>
+</ul>
+<p>Was sich nicht sicher erkennen laesst, landet unauffaellig im
+Match-Dialog statt falsch automatisch zugeordnet zu werden.</p>
+<p>Rechtsklick auf einen Film oder eine Serie &rarr;
+<i>Nur diesen Film/diese Serie scannen</i> liest nur diesen einen Ordner
+neu ein, statt jedes Mal die ganze Bibliothek zu durchsuchen. Ein laufender
+Scan laesst sich ueber den <i>Abbrechen</i>-Knopf im Fortschrittsdialog
+jederzeit unterbrechen, ohne bereits vorhandene Bibliothekseintraege zu
+verlieren.</p>
+
 <h2>Umbenennen-Vorlagen</h2>
 <p>Unter <b>Einstellungen &rarr; Umbenennen</b> frei einstellbar. Platzhalter:</p>
 <ul>
 <li>Filme: <code>{title} {year} {ext}</code></li>
-<li>Serien: <code>{series} {year} {season} {episode} {episode_title} {ext}</code> -
-    <code>{year}</code> ist dabei das Jahr der Erstausstrahlung der Serie.</li>
+<li>Serien: <code>{series} {year} {season} {episode} {episode_end}
+    {episode_title} {ext}</code> - <code>{year}</code> ist dabei das Jahr
+    der Erstausstrahlung der Serie, <code>{episode_end}</code> nur bei
+    Mehrteilern wie <code>S01E01E02</code> belegt (sonst leer).</li>
 </ul>
 <p>Ein <code>/</code> in der Vorlage legt eine neue Ordnerebene an. Enthaelt ein
 Titel selbst ungueltige Zeichen (z. B. einen Schraegstrich bei einer
