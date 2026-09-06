@@ -62,6 +62,19 @@ def test_display_title_single_episode_has_no_range(tmp_path):
     assert item.display_title == "Show S01E01"
 
 
+def test_backup_to_copies_all_items(tmp_path):
+    index = make_index(tmp_path)
+    index.mark_scanned(Path("/movies/Test (2020).mkv"), "movie",
+                       Path("/movies"), title="Test", year=2020)
+    destination = tmp_path / "backup" / "copy.sqlite"
+    index.backup_to(destination)
+    assert destination.exists()
+
+    restored = LibraryIndex(destination)
+    items = restored.all_items()
+    assert [i.title for i in items] == ["Test"]
+
+
 def test_forget_missing_removes_gone_files(tmp_path):
     index = make_index(tmp_path)
     root = Path("/series")

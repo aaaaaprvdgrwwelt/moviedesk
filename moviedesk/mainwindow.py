@@ -1,6 +1,7 @@
 """Hauptfenster: Filme/Serien-Raster, Scan, Zuordnung, Umbenennen."""
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import QSettings, QSize, Qt, QTimer, QUrl
@@ -155,6 +156,7 @@ class MainWindow(QMainWindow):
              tool_icon("delete"), target=self.tabs,
              shortcut_context=Qt.WidgetWithChildrenShortcut)
         a.add("search", "Suchen", "Ctrl+F", self.focus_search)
+        a.add("backup", "Bibliothek sichern …", None, self.backup_library)
         a.add("settings", "Einstellungen …", "Ctrl+,", self.open_settings,
              tool_icon("settings"))
         a.add("help", "Hilfe …", "F1", self.open_help, tool_icon("help"))
@@ -209,6 +211,8 @@ class MainWindow(QMainWindow):
         menu.addAction(a["add_series_root"])
         menu.addSeparator()
         menu.addAction(a["scan"])
+        menu.addSeparator()
+        menu.addAction(a["backup"])
         menu.addSeparator()
         menu.addAction(a["quit"])
 
@@ -716,6 +720,27 @@ class MainWindow(QMainWindow):
                 message + "\n" + "\n".join(errors[:10]))
         else:
             QMessageBox.information(self, _("Untertitel herunterladen …"), message)
+
+    # --- Sichern --------------------------------------------------------
+    def backup_library(self) -> None:
+        """Kopiert die Bibliotheksdatenbank an einen selbst gewaehlten Ort -
+        sie ist die einzige Quelle der Wahrheit fuer Zuordnungen, dafuer gibt
+        es sonst keine Sicherung. Ueberschreiben laesst sie sich einfach
+        durch Zurueckkopieren bei geschlossener App."""
+        suggested = f"moviedesk-backup-{datetime.now():%Y-%m-%d}.sqlite"
+        path, _filter = QFileDialog.getSaveFileName(
+            self, _("Bibliothek sichern …"), suggested, "SQLite (*.sqlite)")
+        if not path:
+            return
+        try:
+            self.library.backup_to(Path(path))
+        except OSError as exc:
+            QMessageBox.warning(
+                self, _("Bibliothek sichern …"),
+                _("Sicherung fehlgeschlagen: {error}").format(error=exc))
+            return
+        self.statusBar().showMessage(
+            _("Bibliothek gesichert nach {path}").format(path=path), 5000)
 
     # --- Einstellungen -----------------------------------------------
     def open_settings(self) -> None:

@@ -173,6 +173,12 @@ gelöscht. „Ganzes Verzeichnis löschen“ ist deaktiviert, wenn die Datei
 direkt im Bibliotheksordner liegt, damit sich der Bibliotheksordner selbst
 nicht aus Versehen leeren lässt.
 
+**Bibliothek sichern …** — kopiert die Datenbank mit allen Zuordnungen an
+einen selbst gewählten Ort (über SQLites Online-Backup-API, sicher auch
+während die App läuft). Sie ist die einzige Quelle der Wahrheit für
+Zuordnungen; ohne Sicherung wäre ein Datenverlust nicht rückgängig zu
+machen.
+
 **Bedienung** — Menüleiste mit allen Befehlen, Werkzeugleiste für die
 ständig gebrauchten. Tastenkürzel:
 
