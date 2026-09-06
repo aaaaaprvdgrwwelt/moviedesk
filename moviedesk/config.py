@@ -58,7 +58,7 @@ class Settings:
     release_country: str = "DE"
 
     @classmethod
-    def load(cls, settings: QSettings) -> "Settings":
+    def load(cls, settings: QSettings) -> Settings:
         settings.beginGroup("moviedesk")
         obj = cls(
             tmdb_key=get_secret(settings, "moviedesk", "tmdb_key"),

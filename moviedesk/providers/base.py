@@ -3,7 +3,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from deskkit.matching import normalize_title, title_similarity
+# Re-exportiert fuer matcher.py - noqa, weil hier selbst ungenutzt.
+from deskkit.matching import title_similarity  # noqa: F401
 
 MOVIE = "movie"
 SERIES = "series"
