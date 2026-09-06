@@ -125,7 +125,7 @@ jobs:
           cat selftest.log || true
           exit $ergebnis
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: MovieDesk-${{ matrix.name }}
           path: |
