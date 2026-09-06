@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MovieDesk – ein Dateimanager nur für Filme und Serien</title>
+<meta name="description" content="Ein Dateimanager, der nur Filme und Serien kennt: sichten, Metadaten von TMDb/OMDb/TheTVDB holen, umbenennen. Python + Qt, Linux/Windows/macOS, Deutsch und Englisch.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<meta property="og:title" content="MovieDesk">
+<meta property="og:description" content="Ein Dateimanager, der nur Filme und Serien kennt: sichten, Metadaten holen, umbenennen.">
+<meta property="og:type" content="website">
+<style>
+:root {
+  --bg: #f7f9fb; --fg: #1e2530; --muted: #5c6470; --line: #dde3e9;
+  --card: #ffffff; --accent: #3c5a78; --accent-fg: #ffffff;
+  --code-bg: #eef2f5; --shadow: 0 1px 2px rgba(0,0,0,.06), 0 8px 24px rgba(0,0,0,.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12161c; --fg: #e6eaef; --muted: #9aa4b0; --line: #262e38;
+    --card: #1a2029; --accent: #7fa8cc; --accent-fg: #10161d;
+    --code-bg: #202834; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12161c; --fg: #e6eaef; --muted: #9aa4b0; --line: #262e38;
+  --card: #1a2029; --accent: #7fa8cc; --accent-fg: #10161d;
+  --code-bg: #202834; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+}
+:root[data-theme="light"] {
+  --bg: #f7f9fb; --fg: #1e2530; --muted: #5c6470; --line: #dde3e9;
+  --card: #ffffff; --accent: #3c5a78; --accent-fg: #ffffff;
+  --code-bg: #eef2f5; --shadow: 0 1px 2px rgba(0,0,0,.06), 0 8px 24px rgba(0,0,0,.05);
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  overflow-x: hidden;
+}
+.wrap { max-width: 880px; margin: 0 auto; padding: 0 20px; }
+a { color: var(--accent); }
+
+header { padding: 72px 0 56px; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.brand svg { width: 84px; height: 84px; flex: none; border-radius: 19px; box-shadow: var(--shadow); }
+h1 { margin: 0; font-size: clamp(2rem, 6vw, 2.9rem); letter-spacing: -.02em; }
+.tagline { margin: 18px 0 0; font-size: 1.2rem; color: var(--muted); max-width: 34em; }
+.buttons { margin-top: 30px; display: flex; gap: 12px; flex-wrap: wrap; }
+.btn {
+  display: inline-block; padding: 11px 20px; border-radius: 9px;
+  text-decoration: none; font-weight: 600; font-size: .96rem;
+  border: 1px solid var(--line); color: var(--fg); background: var(--card);
+}
+.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+
+section { padding: 52px 0; border-bottom: 1px solid var(--line); }
+section:last-of-type { border-bottom: 0; }
+h2 { font-size: 1.5rem; margin: 0 0 8px; letter-spacing: -.01em; }
+h2 + .sub { margin: 0 0 28px; color: var(--muted); }
+h3 { font-size: 1.05rem; margin: 0 0 6px; }
+
+.cards { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.card {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 12px; padding: 20px; box-shadow: var(--shadow);
+}
+.card p { margin: 0; color: var(--muted); font-size: .93rem; }
+
+pre {
+  background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px;
+  padding: 16px 18px; overflow-x: auto; font-size: .88rem; line-height: 1.6;
+}
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+p code, li code, td code { background: var(--code-bg); padding: .12em .38em; border-radius: 4px; font-size: .89em; }
+
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .93rem; }
+th, td { text-align: left; padding: 9px 14px 9px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 600; white-space: nowrap; }
+
+.note {
+  background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+  border-radius: 0 10px 10px 0; padding: 16px 20px; margin: 26px 0 0;
+  font-size: .93rem; color: var(--muted);
+}
+.note strong { color: var(--fg); }
+
+footer { padding: 40px 0 60px; color: var(--muted); font-size: .9rem; }
+footer a { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="brand">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="MovieDesk-Symbol">
+        <defs>
+          <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#1c3348"/><stop offset="1" stop-color="#3c5a78"/>
+          </linearGradient>
+        </defs>
+        <rect x="0" y="0" width="512" height="512" rx="114" fill="url(#bg)"/>
+        <g transform="translate(51.2,51.2) scale(6.4)">
+          <rect x="6" y="24" width="52" height="34" rx="4" fill="#f2f2f2"/>
+          <path d="M6 24 L14 12 H22 L16 24 Z" fill="#e0a83c"/>
+          <path d="M22 24 L30 12 H38 L32 24 Z" fill="#23384a"/>
+          <path d="M38 24 L46 12 H54 L48 24 Z" fill="#e0a83c"/>
+          <circle cx="32" cy="41" r="11" fill="#3c5a78"/>
+          <path d="M27 35 L39 41 L27 47 Z" fill="#f2f2f2"/>
+        </g>
+      </svg>
+      <h1>MovieDesk</h1>
+    </div>
+
+    <p class="tagline">
+      Ein Dateimanager, der nur Filme und Serien kennt: sichten, Metadaten holen,
+      umbenennen. Übersichtliche Alternative zu Sonarr/tinyMediaManager für eine
+      private Sammlung ohne Serverfarm.
+    </p>
+
+    <div class="buttons">
+      <a class="btn primary" href="https://github.com/aaaaaprvdgrwwelt/moviedesk">Auf GitHub ansehen</a>
+      <a class="btn" href="#installation">Installation</a>
+      <a class="btn" href="#quellen">Metadaten-Quellen</a>
+    </div>
+
+    <div class="note">
+      <strong>Status: nutzbar.</strong> Entwickelt und getestet unter Linux.
+      Windows und macOS sollten laufen (reines Qt/Python), sind aber nicht
+      manuell getestet — die automatisierte Testsuite läuft dort in der CI.
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>Was es kann</h2>
+    <p class="sub">Oberfläche auf Deutsch und Englisch, umschaltbar im laufenden Betrieb.</p>
+    <div class="cards">
+      <div class="card">
+        <h3>Scannen</h3>
+        <p>Erkennt gängige Szene-Konventionen (<code>S01E05</code>, <code>1x05</code>),
+           Mehrfach-Episoden wie <code>S01E01E02</code> vollständig und Anime-Nummerierung
+           ohne Staffelangabe. Samples/Trailer fliegen raus, ohne echte Episodentitel
+           mit „Extra“ im Namen zu verwechseln.</p>
+      </div>
+      <div class="card">
+        <h3>Automatisch zuordnen</h3>
+        <p>Bewertet Kandidaten nach Titel und Jahr. Unsichere Treffer bleiben markiert,
+           statt falsch automatisch zugeordnet zu werden — Nachtragen per Doppelklick
+           oder direkt per TMDb-/IMDb-Link.</p>
+      </div>
+      <div class="card">
+        <h3>Gezielt rescannen</h3>
+        <p>Rechtsklick auf einen Film oder eine Serie → nur diesen einen Ordner neu
+           einlesen, statt jedes Mal die ganze (oft riesige) Bibliothek zu durchsuchen.</p>
+      </div>
+      <div class="card">
+        <h3>Sammlungen &amp; fehlende Teile</h3>
+        <p>Filmreihen gruppieren sich automatisch. Bei ausgewählter Sammlung oder Serie
+           zeigt „Fehlende Teile“, was laut TMDb noch aussteht.</p>
+      </div>
+      <div class="card">
+        <h3>Umbenennen nach Vorlage</h3>
+        <p>Vorschau vor jeder Änderung, nichts wird vorher auf der Platte angefasst.
+           Eigene Vorlagen für Filme und Serien, inklusive Mehrteiler-Platzhalter.</p>
+      </div>
+      <div class="card">
+        <h3>NFO &amp; Untertitel</h3>
+        <p>Kodi-/Jellyfin-/Plex-kompatible <code>.nfo</code>-Dateien auf Wunsch,
+           Untertitel-Download über OpenSubtitles in den konfigurierten Sprachen.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="installation">
+  <div class="wrap">
+    <h2>Installation</h2>
+    <p class="sub">Fertige Pakete für Windows/macOS unter
+      <a href="https://github.com/aaaaaprvdgrwwelt/moviedesk/releases">Releases</a> —
+      unsigniert, deshalb beim ersten Start je einmal „Trotzdem ausführen“ (Windows)
+      bzw. Rechtsklick → Öffnen (macOS) bestätigen. Aus dem Quelltext (Linux und alle
+      anderen) reicht Python 3.10 oder neuer:</p>
+<pre><code>git clone https://github.com/aaaaaprvdgrwwelt/deskkit.git
+git clone https://github.com/aaaaaprvdgrwwelt/moviedesk.git
+cd moviedesk
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt</code></pre>
+    <h3 style="margin-top:28px">Starten</h3>
+<pre><code>./moviedesk.sh            # oder: .venv/bin/python -m moviedesk
+./install-desktop.sh      # Eintrag im Anwendungsmenü anlegen (Linux)</code></pre>
+  </div>
+</section>
+
+<section id="quellen">
+  <div class="wrap">
+    <h2>Metadaten-Quellen</h2>
+    <p class="sub">Alle vier optional, einzeln unter Einstellungen → Quellen/Untertitel
+       abschaltbar. API-Keys landen im System-Schlüsselbund statt im Klartext.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Quelle</th><th>Wofür</th><th>Key</th></tr></thead>
+        <tbody>
+          <tr><td><strong>TMDb</strong></td><td>Titel, Jahr, Poster, Genres — Filme <em>und</em> Serien. Ohne diesen Key funktioniert die automatische Zuordnung praktisch nicht.</td><td>ja, kostenlos</td></tr>
+          <tr><td><strong>TheTVDB</strong></td><td>Alternative für Serien mit guter Staffelstruktur</td><td>ja, kostenlos</td></tr>
+          <tr><td><strong>OMDb</strong></td><td>ergänzt IMDb-Rating, hilft bei IMDb-Link-Zuordnung</td><td>ja, kostenlos</td></tr>
+          <tr><td><strong>OpenSubtitles</strong></td><td>Untertitel-Download</td><td>ja, kostenlos</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Umbenennen-Vorlagen</h2>
+    <p class="sub">Frei einstellbar unter Einstellungen → Umbenennen. Ein <code>/</code>
+       legt eine neue Ordnerebene an.</p>
+<pre><code>Filme:  {title} {year} {ext}
+Serien: {series} {year} {season} {episode} {episode_end} {episode_title} {ext}</code></pre>
+    <p style="margin-top:16px"><code>{year}</code> ist das Jahr der Erstausstrahlung,
+       <code>{episode_end}</code> nur bei Mehrteilern wie <code>S01E01E02</code> belegt
+       (sonst leer).</p>
+    <div class="note">
+      <strong>Die Bibliothek ist die Quelle der Wahrheit.</strong> Anders als bei
+      ComicDesk (ComicInfo.xml direkt in der Datei) kennen Videodateien kein
+      verbreitetes eingebettetes Metadatenformat — Zuordnungen leben deshalb in
+      einem SQLite-Index, der beim Umbenennen automatisch mitgeführt wird.
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Bedienung</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Kürzel</th><th>Aktion</th></tr></thead>
+        <tbody>
+          <tr><td><code>F5</code></td><td>Scannen</td></tr>
+          <tr><td><code>Strg+T</code></td><td>Automatisch zuordnen</td></tr>
+          <tr><td><code>Strg+M</code></td><td>Fehlende Teile …</td></tr>
+          <tr><td><code>Strg+R</code></td><td>Umbenennen …</td></tr>
+          <tr><td><code>Strg+F</code></td><td>Suchen</td></tr>
+          <tr><td><code>Entf</code></td><td>Löschen …</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>
+      MIT-Lizenz ·
+      <a href="https://github.com/aaaaaprvdgrwwelt/moviedesk">Quellcode</a> ·
+      <a href="https://github.com/aaaaaprvdgrwwelt/moviedesk/blob/main/README.md">Vollständige Dokumentation</a> ·
+      <a href="https://github.com/aaaaaprvdgrwwelt/moviedesk/issues">Fehler melden</a>
+    </p>
+    <p>Teil der <code>*desk</code>-Familie:
+       <a href="https://aaaaaprvdgrwwelt.github.io/comicdesk/">ComicDesk</a> ·
+       <a href="https://aaaaaprvdgrwwelt.github.io/bookdesk/">BookDesk</a> ·
+       <a href="https://aaaaaprvdgrwwelt.github.io/audiodesk/">AudioDesk</a>.
+       Metadaten von TMDb, TheTVDB, OMDb und OpenSubtitles.</p>
+  </div>
+</footer>
+
+</body>
+</html>
